@@ -12,51 +12,46 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
-import interfaces.ReportSummary;
 import interfaces.LogEntry;
+import interfaces.ReportSummary;
 import interfaces.TestCase;
 
 public class LogFileReader implements interfaces.FileReader {
-
-	List<interfaces.TestCase> testEntries_;
-	List<interfaces.TestCase> skipEntries_;
-	ReportSummary summary_;
+	List<String> fileList_;
+	List<String> imageList_;
+	
+	List<String> skippedList_;
+	
+	int fileIndex_;
+	int imageIndex_;
+	
+	String path_;
+	String summaryFile_;
 	
 	public LogFileReader() {
+		fileList_ = new ArrayList<String>();
+		imageList_ = new ArrayList<String>();
+		
+		fileIndex_ = 0;
+		imageIndex_ = 0;
+		
+		summaryFile_ = "";
+		
+		skippedList_ = new ArrayList<String>();
 	}
 
 	@Override
-	public TestCase[] getEntries() {
-		TestCase[] ret = new TestCase[testEntries_.size()];
-		return testEntries_.toArray(ret);
-	}
-	
-	@Override
-	public ReportSummary getReport() {
-		return summary_;
-	}
-	
-	@Override
-	public void readDir(String path) {
-		List<String> fileList = new ArrayList<String>();
-		ArrayList<String> imagelist = new ArrayList<String>();
-		List<String> cleanFileList = new ArrayList<String>();
+	public void scanDir(String path) {
+		path_ = path;
 		
-		File f = new File(path);
+		File f = new File(path_);
 		
-		testEntries_ = new ArrayList<interfaces.TestCase>();
-		skipEntries_ = new ArrayList<interfaces.TestCase>();
-		
-		summary_ = new ReportSummaryImpl();
-		summary_.setGenerationTime(LocalDateTime.now());
-		
-		//Get files in path
-		fileList = new ArrayList<String>(Arrays.asList(f.list()));
+		List<String> fileList = new ArrayList<String>(Arrays.asList(f.list()));
 		
 		//Filter for .log files
 		for (String s : fileList) {	
 			//skip dirs
-			if (new File("" + path + s).isDirectory()) {
+			if (new File("" + path_ + s).isDirectory()) {
 				continue;
 			}	
 			
@@ -65,87 +60,44 @@ public class LogFileReader implements interfaces.FileReader {
 			
 			if (filename.substring(0, filename.indexOf("_")).equals("Algemeen"))
 			{
-				System.out.println("Summary: " + filename);
-				summary_.setTitle(filename.split("_")[1].trim());
-				System.out.println(summary_.getTitle());
-				generateOverview(path + s);
+				if (summaryFile_.equals(""))
+				{
+					summaryFile_ = filename;
+				}
+				
+				else
+				{
+					System.out.print("Multiple summaries found in folder");
+				}
 			}
 			
 			else if (extension.equals("log") == true) {
-				cleanFileList.add(s);
+				fileList_.add(s);
 			}
 			
 			else if (extension.equals("jpg") == true ||
 					 extension.equals("png") == true) {
-				imagelist.add(s);
+				imageList_.add(s);
 			}
 		}
-		
-		//Parse each file
-		String lastTest = "";
-		for (String n : cleanFileList) {
-			
-			String testName = n.split("_Run")[0];
-			System.out.println(testName);
-			if (lastTest.equals(testName) == false) {
-				lastTest = testName;
 				
-				interfaces.TestCase newTest = new implemented.TestCaseImpl();
-				newTest.setName(testName);
-				
-				for (String file : imagelist) {
-					String imageOwner = file.split("_Run")[0];
-					System.out.println(imageOwner + " : " + testName );
-					if (imageOwner.equals(testName)) {
-						newTest.addPic(file);
-					}
-				}
-				
-				testEntries_.add(newTest);
-			}
-			
-			interfaces.TestCase curTest = testEntries_.get(testEntries_.size() - 1);
-			
-			//Pull log entries into testEntry
-			try(BufferedReader br = new BufferedReader(new FileReader(path + n))) {
-				
-				boolean firstLine = true;
-				String lastLine = "";
-				
-			    for(String line; (line = br.readLine()) != null; ) {
-			    	if (firstLine) {
-			    		if (line.contains("Logging Gestart")) { continue; }
-			    		startTest(curTest, line);
-			    		firstLine = false;
-			    	}
-			    	
-			    	LogEntry l = processLine(line);
-			    	
-			    	updateStatus(curTest, l);
-			    	
-			    	curTest.addLog((interfaces.LogEntry) l);
-			    	lastLine = line;
-			    }
-			    
-			    endTest(curTest, lastLine);
-			    summary_.addTest(curTest.getName(), curTest.getStatus());
-			}
-			catch (FileNotFoundException e) {
-				System.console().writer().println("Error: Could not find file.");
-				e.printStackTrace();
-			}
-			catch (IOException e) {
-				System.console().writer().println("Error: Problem reading file.");
-				e.printStackTrace();
-			}
-			
-		}
-		
-		//testEntries_.addAll(skipEntries_);
 	}
 
-	public void generateOverview(String filepath) {
-		try(BufferedReader br = new BufferedReader(new FileReader(filepath))) {			
+	@Override
+	public ReportSummary parseSummary() {
+		ReportSummary sum = new ReportSummaryImpl();
+		
+		System.out.println("Summary file: " + summaryFile_);
+		
+		if (summaryFile_.equals("")) {
+			return sum;
+		}
+		
+		sum.setTitle(summaryFile_.split("_")[1].trim());
+		
+		System.out.println("Summary: " + sum.getTitle());	
+		
+		try(BufferedReader br = new BufferedReader(new FileReader(path_ + summaryFile_ + ".log"))) {			
 		    boolean startDate = false;
 			for(String line; (line = br.readLine()) != null; ) {
 				
@@ -160,7 +112,7 @@ public class LogFileReader implements interfaces.FileReader {
 						if (startDate == false && info[0].equals("Date"))
 						{
 							LocalDateTime start = formatDate(info[1]);
-							summary_.setStartTime(start);
+							sum.setStartTime(start);
 							startDate = true;
 						}
 						
@@ -168,28 +120,99 @@ public class LogFileReader implements interfaces.FileReader {
 						{
 							if (info[1].contains("uitgesloten")) 
 							{
-								interfaces.TestCase tc = new TestCaseImpl();
-								tc.setName(info[1].split(" is")[0]);
-								tc.setRunTime(0);
-								tc.setStatus("Skip");
-								tc.setStartTime(summary_.getGenerationTime());
-								skipEntries_.add(tc);
-							    summary_.addTest(tc.getName(), tc.getStatus());
+								//interfaces.TestCase tc = new TestCaseImpl();
+								//tc.setName(info[1].split(" is")[0]);
+								//tc.setRunTime(0);
+								//tc.setStatus("Skip");
+								//tc.setStartTime(summary_.getGenerationTime());
+							    //summary_.addTest(tc.getName(), tc.getStatus());
+							    
+							    skippedList_.add(info[1].split(" is")[0]);
+							    //sum.addTest("", "Skip", Duration.ofSeconds(0));
 							}
 						}
 					}
 				}
 		    }
-		    
 		}
 		catch (FileNotFoundException e) {
-			System.console().writer().println("Error: Could not find file.");
+			System.out.println("Error: Could not find file: " + path_ + summaryFile_);
 			e.printStackTrace();
 		}
 		catch (IOException e) {
-			System.console().writer().println("Error: Problem reading file.");
+			System.out.println("Error: Problem reading file.");
 			e.printStackTrace();
 		}
+		
+		return sum;
+	}
+
+	@Override
+	public TestCase parseNextTest() {
+		String filename = fileList_.get(fileIndex_);
+		String testName = filename.split("_Run")[0];
+		System.out.println(testName);
+		
+		interfaces.TestCase newTest = new implemented.TestCaseImpl();
+		newTest.setName(testName);
+		
+		for (String file : imageList_) {
+			String imageOwner = file.split("_Run")[0];
+			//System.out.println(imageOwner + " : " + testName + " = " + imageOwner.equals(testName));
+			if (imageOwner.equals(testName)) {
+				newTest.addPic(file);
+			}
+		}
+	
+		//Pull log entries into testEntry
+		try(BufferedReader br = new BufferedReader(new FileReader(path_ + filename))) {
+				
+		boolean firstLine = true;
+		String lastLine = "";
+			
+		for(String line; (line = br.readLine()) != null; ) {
+		   		if (firstLine) {
+		   			if (line.contains("Logging Gestart")) { continue; }
+		   			startTest(newTest, line);
+		   			firstLine = false;
+		   		}
+			    	
+		   			LogEntry l = processLine(line);
+
+		   			newTest.addLog((interfaces.LogEntry) l);
+		   			lastLine = line;
+		   		}
+			    
+			    endTest(newTest, lastLine);
+			    //summary_.addTest(newTest.getName(), newTest.getStatus());
+			}
+			catch (FileNotFoundException e) {
+				System.console().writer().println("Error: Could not find file.");
+				e.printStackTrace();
+			}
+			catch (IOException e) {
+				System.console().writer().println("Error: Problem reading file.");
+				e.printStackTrace();
+			}
+			
+			finally {
+				fileIndex_++;
+			}
+		
+			return newTest;
+		}
+		
+
+	@Override
+	public boolean hasNextTest() {
+		return fileIndex_ < fileList_.size();
+	}
+		
+	private LocalDateTime formatDate(String date)
+	{
+		DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
+		LocalDateTime dateTime = LocalDateTime.parse(date, formatter);
+		return dateTime;
 	}
 	
 	private LogEntry processLine(String text)
@@ -198,7 +221,6 @@ public class LogFileReader implements interfaces.FileReader {
 		
 		String[] splits = text.split(" \\| ");
 		
-		//Protect against newlines breaking everything, xml solves
 		if (splits.length > 1)
 		{
 			for (String s : splits)
@@ -217,22 +239,6 @@ public class LogFileReader implements interfaces.FileReader {
 		return l;
 	}
 	
-	private void updateStatus(interfaces.TestCase entry, interfaces.LogEntry log) {
-		if (log.getData().containsKey("Severity"))
-		{			
-			if (log.getData().get("Source").equals("STOP"))
-			{
-				String status = log.getData().get("Message");
-				status = status.substring(status.indexOf(": ") + 2);
-				
-				if (status.equals("GESLAAGD")) entry.setStatus("Pass");
-				if (status.equals("WAARSCHUWINGEN")) entry.setStatus("Warn");
-				if (status.equals("FOUT")) entry.setStatus("Error");
-				if (status.equals("NIET GESLAAGD")) entry.setStatus("Fail");
-			}
-		}
-	}
-	
 	private void startTest(interfaces.TestCase entry, String line)
 	{
 		String[] splits = line.split(" \\| ");
@@ -246,7 +252,6 @@ public class LogFileReader implements interfaces.FileReader {
 				if (info[0].equals("Date")) {
 					LocalDateTime testDate = formatDate(info[1]);
 					entry.setStartTime(testDate);
-					
 				}
 				
 				else if (info[0].equals("Message"))	{
@@ -272,17 +277,20 @@ public class LogFileReader implements interfaces.FileReader {
 					
 				    entry.setRunTime(testTime);
 				    
-				    summary_.setRunTime(summary_.getRunTime().getSeconds() + testTime);
-					//also status
+				    //summary_.setRunTime(summary_.getRunTime().getSeconds() + testTime);				    
+				}
+					
+				if (info[0].equals("Message"))
+				{
+					String status = info[1];
+					status = status.substring(status.indexOf(": ") + 2);
+					
+					if (status.equals("GESLAAGD")) entry.setStatus("Pass");
+					if (status.equals("WAARSCHUWINGEN")) entry.setStatus("Warn");
+					if (status.equals("FOUT")) entry.setStatus("Error");
+					if (status.equals("NIET GESLAAGD")) entry.setStatus("Fail");
 				}
 			}
 		}	
-	}
-	
-	private LocalDateTime formatDate(String date)
-	{
-		DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
-		LocalDateTime dateTime = LocalDateTime.parse(date, formatter);
-		return dateTime;
 	}
 }

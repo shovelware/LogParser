@@ -1,9 +1,13 @@
 package reportgen;
 
+import implemented.HTMLFileWriter;
+import implemented.LogFileReader;
 import interfaces.FileReader;
 import interfaces.HTMLWriter;
-import implemented.HTMLWriterImpl;
-import implemented.LogFileReader;
+
+//Picking up of test status counts in htmlwriter is ugly
+//Picking up of skipped tests in reader is ugly
+//Total runtime still a problem
 
 public class Main {
 	public static void main(String[] args) {
@@ -12,7 +16,9 @@ public class Main {
 		String outputDir = absoluteCurDir;
 		
 		FileReader reader_ = new LogFileReader();
-		HTMLWriter writer_ = new HTMLWriterImpl();
+		HTMLWriter writer_;
+		writer_ = new HTMLFileWriter();
+		//writer_ = new RawWriter();
 		
 		//No arguments, output to a folder
 		if (args.length == 0);
@@ -40,15 +46,22 @@ public class Main {
 		System.out.println("Input folder set to: " + inputDir);
 		System.out.println("Output folder set to: " + outputDir + "\n");
 		
+		System.out.println("Scanning directory...");
+		reader_.scanDir(inputDir);
+
+		System.out.println("Preparing...");
+		writer_.beginReport(outputDir, reader_.parseSummary());
 		
-		//Actual work is done by classes
-		System.out.println("Reading directory...");
-		reader_.readDir(inputDir);
-		writer_.setData(reader_.getEntries());
-		writer_.setSummary(reader_.getReport());
-		
-		System.out.println("\nWriting report...");
-		writer_.writeReport(outputDir);
+		int count = 1;
+		while(reader_.hasNextTest())
+		{
+			System.out.println("Processing test: " + count);
+			writer_.writeTest(reader_.parseNextTest());
+			count++;
+		}
+
+		System.out.println("Finalizing...");
+		writer_.endReport();		
 		System.out.println("Complete.");
 	}	
 	

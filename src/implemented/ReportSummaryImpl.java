@@ -21,9 +21,17 @@ public class ReportSummaryImpl implements ReportSummary {
 	protected int failTests_;
 	
 	public ReportSummaryImpl() {
-		testList_ = new LinkedList<String>();
+		title_ = "$REPORT_TITLE$";
 		generationTime_ = LocalDateTime.now();
+		startTime_ = LocalDateTime.of(1990, 1, 1, 12, 00, 00);
 		runTime_ = Duration.ofSeconds(0L);
+		testList_ = new LinkedList<String>();
+		
+		skipTests_ = 0;
+		passTests_ = 0;
+		warnTests_ = 0;
+		errorTests_ = 0;
+		failTests_ = 0;
 	}
 
 	@Override
@@ -33,7 +41,7 @@ public class ReportSummaryImpl implements ReportSummary {
 
 	@Override
 	public String getTitle() {
-		return title_;
+		return title_  == null ? "$MISSING_TITLE$" : title_;
 	}
 
 	@Override
@@ -43,7 +51,7 @@ public class ReportSummaryImpl implements ReportSummary {
 
 	@Override
 	public LocalDateTime getGenerationTime() {
-		return generationTime_;
+		return generationTime_ == null ? LocalDateTime.of(1990, 1, 1, 12, 00, 00) : generationTime_;
 	}
 
 	@Override
@@ -63,18 +71,26 @@ public class ReportSummaryImpl implements ReportSummary {
 
 	@Override
 	public Duration getRunTime() {
-		return runTime_;
+		return runTime_== null ? Duration.ofSeconds(999999) : runTime_;
 	}
 
 	@Override
-	public void addTest(String title, String status) {
+	public void addTest(String title, String status, Duration seconds) {
 		if (status.equalsIgnoreCase("pass")) { passTests_++; }
 		else if (status.equalsIgnoreCase("skip")) { skipTests_++; }
 		else if (status.equalsIgnoreCase("warn")) { warnTests_++; }
 		else if (status.equalsIgnoreCase("error")) { errorTests_++; }
 		else if (status.equalsIgnoreCase("fail")) { failTests_++; }
 		
-		testList_.add(title + "%=%" + status.trim());
+		if (status.equals("")) {
+			errorTests_++;
+			testList_.add(title + "%=%" + "error");
+		}
+		
+		
+		else testList_.add(title + "%=%" + status.trim());
+		
+		runTime_ = runTime_.plus(seconds);
 	}
 
 	@Override

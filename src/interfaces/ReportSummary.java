@@ -16,7 +16,7 @@ public interface ReportSummary {
 	public void setRunTime(long time);
 	public Duration getRunTime();
 	
-	public void addTest(String title, String status);
+	public void addTest(String title, String status, Duration seconds);
 	public String[] getTests();
 	
 	public int getSkipTests();

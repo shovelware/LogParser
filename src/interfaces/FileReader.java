@@ -1,7 +1,9 @@
 package interfaces;
 
 public interface FileReader {
-	void readDir(String path);
-	TestCase[] getEntries();
-	ReportSummary getReport();
+	void scanDir(String path);
+	interfaces.ReportSummary parseSummary();
+	interfaces.TestCase parseNextTest();
+	
+	boolean hasNextTest();
 }
