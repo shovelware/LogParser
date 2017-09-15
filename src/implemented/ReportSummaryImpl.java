@@ -19,6 +19,7 @@ public class ReportSummaryImpl implements ReportSummary {
 	protected int warnTests_;
 	protected int errorTests_;
 	protected int failTests_;
+	protected int unkownTests_;
 	
 	public ReportSummaryImpl() {
 		title_ = "$REPORT_TITLE$";
@@ -81,22 +82,12 @@ public class ReportSummaryImpl implements ReportSummary {
 		else if (status.equalsIgnoreCase("warn")) { warnTests_++; }
 		else if (status.equalsIgnoreCase("error")) { errorTests_++; }
 		else if (status.equalsIgnoreCase("fail")) { failTests_++; }
+		if (status.equalsIgnoreCase("unknown")) { unkownTests_++; }
 		
-		if (status.equals("")) {
-			errorTests_++;
-			testList_.add(title + "%=%" + "error");
-		}
-		
-		
+		//Fallback of fallbacks, testList is never read
 		else testList_.add(title + "%=%" + status.trim());
 		
 		runTime_ = runTime_.plus(seconds);
-	}
-
-	@Override
-	public String[] getTests() {
-		String[] ret = new String[testList_.size()];
-		return testList_.toArray(ret);
 	}
 
 	@Override
@@ -132,6 +123,11 @@ public class ReportSummaryImpl implements ReportSummary {
 	@Override
 	public int getTotalActiveTests() {
 		return passTests_ + warnTests_ + errorTests_ + failTests_;
+	}
+
+	@Override
+	public int getUnkownTests() {
+		return unkownTests_;
 	}
 
 }

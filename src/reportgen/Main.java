@@ -7,7 +7,6 @@ import interfaces.HTMLWriter;
 
 //Picking up of test status counts in htmlwriter is ugly
 //Picking up of skipped tests in reader is ugly
-//Total runtime still a problem
 
 public class Main {
 	public static void main(String[] args) {
@@ -25,7 +24,7 @@ public class Main {
 		
 		//First arg is input directory, second is output
 		else if (args.length > 0 && 2 >= args.length)	{
-			if (args[0].equals("help"))	{
+			if (args[0].equalsIgnoreCase("help"))	{
 				//If they ask for help, be nice
 				giveHelp();
 				return;
@@ -69,13 +68,8 @@ public class Main {
 	private static void giveHelp() {
 		System.console().writer().println("USAGE:");
 		System.console().writer().println("\nAll paths should be absolute.\n");
-		System.console().writer().println("java Reporter\n Takes input .xml logs from current folder, generates report.html in this folder\n");
+		System.console().writer().println("java Reporter\n Takes input  .logs from current folder, generates report.html in this folder\n");
 		System.console().writer().println("java Reporter [inputDirectory]\n Manually set input folder, generates report in this folder\n");
 		System.console().writer().println("java Reporter [inputDirectory] [outputDirectory]\n Manually set both directories, operate as normal\n");
 	}
 }
-
-//Filetype specific
-//TestEntry
-//  LogEntry++
-//Output to files

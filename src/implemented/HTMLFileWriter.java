@@ -9,7 +9,10 @@ import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.text.DecimalFormat;
 import java.time.Duration;
+import java.time.LocalTime;
 import java.time.format.DateTimeFormatter;
+import java.time.temporal.ChronoUnit;
+import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Set;
@@ -42,6 +45,8 @@ public class HTMLFileWriter implements interfaces.HTMLWriter{
 	HTMLFileTurtle details_;
 	ReportSummary summary_;
 	
+	Map<String, String> languagePack_;	
+	
 	public HTMLFileWriter() {
 		openForTests_ = false;
 		
@@ -50,8 +55,72 @@ public class HTMLFileWriter implements interfaces.HTMLWriter{
 		fileType_ = ".html";
 		
 		testCount_ = 1;
+		
+		setupLanguage("NL");
 	}
 
+	public void setupLanguage(String language) {
+		languagePack_ = new HashMap<String, String>();
+		
+		if (language.equalsIgnoreCase("NL"))
+		{
+			languagePack_.put("runtime", "Totale Looptijd");
+			languagePack_.put("gentime", "Rapport Gegenereerd");
+			languagePack_.put("starttime", "Testing Begonnen");
+			
+			languagePack_.put("testcase", "TestCase");
+			languagePack_.put("status", "Status");
+			
+			languagePack_.put("percent", "Percentage Geslaagd");
+			languagePack_.put("donut", "Test Resultaten");
+			
+			languagePack_.put("timestamp", "Tijd");
+			languagePack_.put("level", "Level");
+			languagePack_.put("source", "Bron");
+			languagePack_.put("log", "Log");
+			
+			languagePack_.put("pass", "Geslaagd");
+			languagePack_.put("skip", "Overgeslagen");
+			languagePack_.put("error", "Fout");
+			languagePack_.put("fail", "Niet Geslaagd");
+			languagePack_.put("warn", "Waarschuwingen");
+			languagePack_.put("unknown", "Onbekend");
+		}
+		
+		else
+		{
+			languagePack_.put("runtime", "Total Runtime");
+			languagePack_.put("gentime", "Report Generated");
+			languagePack_.put("starttime", "Testing Started");
+			
+			languagePack_.put("testcase", "TestCase");
+			languagePack_.put("status", "Status");
+			
+			languagePack_.put("percent", "Pass Percentage");
+			languagePack_.put("donut", "Test Results");
+			
+			languagePack_.put("timestamp", "Time");
+			languagePack_.put("level", "Level");
+			languagePack_.put("source", "Source");
+			languagePack_.put("log", "Log");
+			
+			languagePack_.put("pass", "Pass");
+			languagePack_.put("skip", "Skipped");
+			languagePack_.put("error", "Error");
+			languagePack_.put("fail", "Fail");
+			languagePack_.put("warn", "Warning");
+			languagePack_.put("unknown", "Unknown");
+		}
+	}
+	
+	public String getString(String key) {
+		String value = languagePack_.get(key);
+		
+		if (value == null) value = key;//{ value = "I18N ERROR"; System.out.println("K: " +key);}
+		
+		return value;
+	}
+	
 	@Override
 	public void beginReport(String path, ReportSummary summary) {
 		path_ = path;
@@ -90,7 +159,7 @@ public class HTMLFileWriter implements interfaces.HTMLWriter{
 		if (readyToWrite_ && openForTests_) {
 			//write to overview
 			String line = "<tr><td class=\"testname\"><a class=\"testlink\" href=\"#testcard" + testCount_ +"\">" + testcase.getName();
-			line += "</a></td><td class=\"result " + getHTMLStatus(testcase.getStatus()).toLowerCase() + "bg\">"; 
+			line += "</a></td><td class=\"result " + getHTMLbg(testcase.getStatus()) + "\">"; 
 			line += getHTMLStatus(testcase.getStatus()) + "</td></tr>";
 			
 			try {
@@ -116,7 +185,7 @@ public class HTMLFileWriter implements interfaces.HTMLWriter{
 				
 				details_.addLine("<div class=\"highlight\"><div class=\"card testEntry\" id=\"testcard" + testCount_ + "\">");
 				details_.indent();
-				details_.addLine("<div class=\"cardheader " + getHTMLStatus(testcase.getStatus()).toLowerCase() + "bg\" "+ collapseElement+">");
+				details_.addLine("<div class=\"cardheader " + getHTMLbg(testcase.getStatus()) + "\" "+ collapseElement+">");
 				details_.indent();
 				if (hasData) {
 					//test.addLine("<span class=\"glyphicon glyphicon-plus expandarrow\" aria-hidden=\"true\" style=\"margin-left: 0.25em; float: left; clear: left;\"></span>");
@@ -144,18 +213,25 @@ public class HTMLFileWriter implements interfaces.HTMLWriter{
 						String headers = "<tr>";
 						for (String s : keys)
 						{
+							String is = getString(s);
+							
+							if (is != null) { s = is; }
+							
 							headers += "<th>" + s + "</th>";
 						}
 						headers += "</tr>";
 						
 						details_.addLine(headers);
 						
+						String lastDate = null;
 						for (interfaces.LogEntry l : log)
 						{
 							if (l.getData().isEmpty() == false) 
 							{
-								details_.addLine(processLogLine(l));
+								details_.addLine(processLogLine(l, lastDate));
 							}
+							
+							lastDate = l.getData().get("timestamp");
 						}
 						
 						details_.dedent();
@@ -231,7 +307,11 @@ public class HTMLFileWriter implements interfaces.HTMLWriter{
 			e.printStackTrace();
 			System.out.println("Error closing file writers");
 		}
-		
+	
+		stitchFiles();
+	}
+	
+	private void stitchFiles() {
 		//Build full report
 		try {
 			BufferedReader overview = new BufferedReader(new FileReader(path_ + overviewFile_ + fileType_));
@@ -256,7 +336,6 @@ public class HTMLFileWriter implements interfaces.HTMLWriter{
 			e.printStackTrace();
 		}
 		
-		
 		//delete temps
 		try {
 			Files.deleteIfExists(Paths.get(path_ + overviewFile_ + fileType_));
@@ -269,7 +348,7 @@ public class HTMLFileWriter implements interfaces.HTMLWriter{
 	}
 	
 	//
-	private String processLogLine(interfaces.LogEntry line) {
+	private String processLogLine(interfaces.LogEntry line, String lastTime) {
 		String row = "";
 		String rowType = "";
 		
@@ -278,19 +357,73 @@ public class HTMLFileWriter implements interfaces.HTMLWriter{
 		
 		for (String s : data.keySet())
 		{
-			String value = data.get(s).trim();
 			
-			if (s.equals("Severity"))
+			String value = data.get(s).trim();
+			//System.out.println(value);
+			//System.out.println(row);
+			
+			if (s.equalsIgnoreCase("Timestamp") || s.equalsIgnoreCase("Datum"))
 			{
-				//Only highlight non-info rows
-				rowType = (value.equals("Info") ? "" :  " class = \"" + getHTMLStatus(value) + "bg\"");
+				DateTimeFormatter formatter = DateTimeFormatter.ofPattern("HH:mm:ss.SSSS");
+				LocalTime entryTime = LocalTime.parse(value, formatter);
+				LocalTime lastTimeLT;
+				
+				if (lastTime == null) { lastTimeLT = entryTime; }
+				else lastTimeLT = LocalTime.parse(lastTime, formatter);
+				
+				String timeBetween = getTimeBetween(lastTimeLT, entryTime);
+				
+				row += "<td class=\"timestamp\">" + value + "<div class=\"hovertext\">+"+ timeBetween+"</div></td>";
+				
+				//row += "<td>" + value + "</td>";
 			}
 			
-			if (s.equals("Message"))
+			else if (s.equalsIgnoreCase("Severity") || s.equalsIgnoreCase("Level"))
 			{
-				row += "<td class=\"msg\">" + value + "</td>";
+				//Only highlight non-info rows
+				rowType = (value.equals("Info") ? "" :  " class = \"" + getHTMLbg(value) + "\"");
+				row += "<td>" + value + "</td>";
+			}
+			
+			else if (s.equalsIgnoreCase("Source") || s.equalsIgnoreCase("Bron"))
+			{
+				if (value.equalsIgnoreCase("BasisScreenshot")) {
+
+					row += "<td><span class=\"screenshotlink\">" + value + "</span></td>";
+				}
 				
-				if (value.equals("De test is succesful afgerond zonder fouten."))  { rowType = " class = \"pass\"";}
+				else row+="<td>" + value + "</td>";
+			}
+			
+			else if (s.equalsIgnoreCase("Message") || s.equalsIgnoreCase("Log"))
+			{
+				//Screenshot link parsing
+				if (value.contains("Screenshot gemaakt en opgeslagen"))
+				{
+					int beginI = value.indexOf("[");
+					int nameI = value.lastIndexOf("\\");
+					int endI = value.lastIndexOf("]");
+					
+					if (beginI != -1 && endI != -1 && nameI != -1)
+					{
+						String msgBegin ="";
+						String msgEnd ="";
+						String filename = "";
+						
+						msgBegin = value.substring(0, beginI+1);
+						msgEnd = value.substring(endI, endI + 1);
+						filename = value.substring(nameI + 1, endI);
+						
+						String imglink = "<a class=\"screenshotlink\" href=\"imgs/";
+						imglink += filename;
+						imglink += "\" target=\"_blank\">" + filename + "</a>";
+												
+						value = msgBegin + imglink + msgEnd;
+					}
+				}
+				
+				//Actually add msg to row
+				row += "<td class=\"msg\">" + value + "</td>";
 			}
 				
 			else row += "<td>" + value + "</td>";
@@ -355,11 +488,11 @@ public class HTMLFileWriter implements interfaces.HTMLWriter{
 		overview_.addLine("<span class=\"logo\"><img src=\"imgs/logoklant.png\"></span>");
 		overview_.addLine(String.format("<span class=\"title\"><h1>%s</h1></span><br/>", summary_.getTitle()));
 		overview_.newLine();
-		overview_.addLine("<span class=\"glyphicon glyphicon-file\" aria-hidden=\"true\"></span> Report generated:");
+		overview_.addLine("<span class=\"glyphicon glyphicon-file\" aria-hidden=\"true\"></span> " + getString("gentime") + ":");
 		overview_.addLine(String.format("<span class=\"time\">%s</span><br/>", generationDate));
-		overview_.addLine("<span class=\"glyphicon glyphicon-time\" aria-hidden=\"true\"></span> Testing started:");
+		overview_.addLine("<span class=\"glyphicon glyphicon-time\" aria-hidden=\"true\"></span> " + getString("starttime") + ":");
 		overview_.addLine(String.format("<span class=\"time startdate\">%s</span><br/>", startDate));
-		overview_.addLine("<span class=\"glyphicon glyphicon-repeat\" aria-hidden=\"true\"></span> Total runtime:");
+		overview_.addLine("<span class=\"glyphicon glyphicon-repeat\" aria-hidden=\"true\"></span> " + getString("runtime") + ":");
 		overview_.addLine(String.format("<span class=\"time runtime\">%s</span><br/><br/>", runTime));
 		overview_.newLine();
 	}
@@ -399,9 +532,8 @@ public class HTMLFileWriter implements interfaces.HTMLWriter{
 	
 	protected void openTable() throws IOException {
 		table_.addLine("<div><table>");
-		table_.addLine("<tr><th>Testcase</th><th>Status</th></tr>");
+		table_.addLine("<tr><th>"+ getString("testcase") + "</th><th>"+ getString("status") + "</th></tr>");
 		table_.indent();
-		
 	}
 	
 	protected void endTable() throws IOException {
@@ -487,20 +619,20 @@ public class HTMLFileWriter implements interfaces.HTMLWriter{
 		
 		details_.addLine("data: {");
 		details_.indent();
-		details_.addLine("labels: [\"Skip\", \"Pass\", \"Warn\", \"Fail\", \"Error\"],");
+		details_.addLine("labels: [\"" + getString("skip") + "\", \"" + getString("pass") + "\", \"" + getString("warn") + "\", \"" + getString("fail") + "\", \"" + getString("error") + "\", \"" + getString("unknown") + "\"],");
 		details_.addLine("datasets: [{");
 		
-		//TODO:
-		details_.addLine(String.format("data: [%d, %d, %d, %d, %d],", summary_.getSkipTests(),  summary_.getPassTests(), summary_.getWarnTests(), summary_.getFailTests(), summary_.getErrorTests()));
-		//details_.addLine(String.format("data: [%d, %d, %d, %d, %d],", 10,20,30,40,50));
-		
+		//TODO: Perhaps remove non-extant statuses from graph
+		details_.addLine(String.format("data: [%d, %d, %d, %d, %d, %d],", summary_.getSkipTests(),  summary_.getPassTests(), summary_.getWarnTests(), summary_.getFailTests(), summary_.getErrorTests(), summary_.getUnkownTests()));
+
 		details_.addLine("backgroundColor: [");
 		details_.indent();
 		details_.addLine("'rgba(90, 110, 230, 1)',");
 		details_.addLine("'rgba(80, 200, 80, 1)',");
 		details_.addLine("'rgba(255, 230, 100, 1)',");
 		details_.addLine("'rgba(255, 175, 50, 1)',");
-		details_.addLine("'rgba(255, 80, 50, 1)'");
+		details_.addLine("'rgba(255, 80, 50, 1)',");
+		details_.addLine("'rgba(180, 0, 255, 1)'");
 		details_.dedent();
 		details_.addLine("],");
 		details_.addLine("borderWidth: 2");
@@ -515,7 +647,7 @@ public class HTMLFileWriter implements interfaces.HTMLWriter{
 		details_.addLine("cutoutPercentage: 70,");
 		details_.addLine("rotation: (0.5 * Math.PI),");
 		details_.addLine("legend: { position: 'right' },");
-		details_.addLine("title: { display: false, text: 'Test Results' },");
+		details_.addLine("title: { display: false, text: '"+ getString("results") + "' },");
 		details_.addLine("tooltips: {	position: 'nearest' }");
 		details_.dedent();
 		
@@ -528,7 +660,6 @@ public class HTMLFileWriter implements interfaces.HTMLWriter{
 		//Percent script
 		DecimalFormat decimal = new DecimalFormat("0.00");
 		
-		//TODO:
 		float totalActiveTests = summary_.getTotalActiveTests();
 		float passTests = summary_.getPassTests();
 		
@@ -549,13 +680,13 @@ public class HTMLFileWriter implements interfaces.HTMLWriter{
 		details_.addLine("labels: [\"\"],");
 		details_.addLine("datasets: [{");
 		details_.addLine("stack: \"tests\",");
-		details_.addLine("//label: \"Passed\",");
+		details_.addLine("//label: \"" + getString("Pass") + "\",");
 		details_.addLine(String.format("data: [%s],", decimal.format(passPercent)));
 		details_.addLine("backgroundColor: ['rgba(80, 200, 80, 1)']");
 		details_.addLine("},");
 		details_.addLine("{");
 		details_.addLine("stack: \"tests\",");
-		details_.addLine("//label: \"Failed\",");
+		details_.addLine("//label: \"" + getString("Fail") + "\",");
 		details_.addLine(String.format("data: [%s],",decimal.format(failPercent)));
 		details_.addLine("backgroundColor:['rgba(200, 200, 200, 1)']");
 		details_.addLine("}]");
@@ -565,7 +696,7 @@ public class HTMLFileWriter implements interfaces.HTMLWriter{
 		details_.indent();
 		details_.addLine("responsive: true,");
 		details_.addLine("maintainAspectRatio: false,");
-		details_.addLine("title: { display: true,text: 'Pass percentage' },");
+		details_.addLine("title: { display: true,text: '" + getString("percent") + "' },");
 		details_.addLine("scales: { xAxes: [{ stacked: 'true'}] },");
 		details_.addLine("legend: { display: false, position: 'left' }");
 		details_.dedent();
@@ -577,11 +708,15 @@ public class HTMLFileWriter implements interfaces.HTMLWriter{
 	}
 	
 	private String css() {
-		return ".highlight{background:magenta}.log,.titlecard,body{overflow-y:scroll}.logotext,.testEntry .title,.time,.titlecard .result{font-weight:700}body{font-size:150%;margin:0 auto;padding:40px 40px 65px 25px;background-color:#d1d4d8}.titlecard .logo{float:right;max-height:50px}.titlecard .testname{text-align:left;font-weight:700}td,th{text-align:center}.card{background-color:#fff;box-shadow:2px 2px 1px 0 #888;margin-bottom:1rem;padding:.75rem;border-radius:0}table,td{border:1px solid #000}.titlecard{height:315px}.testEntry .title{font-size:2em;margin-right:0;float:left;display:inline}.testEntry .time{padding-right:.5em;float:right}.log{max-height:400px}table{border-collapse:collapse;background:#CCC;width:100%}th{color:#fff;background:#2f4f4f}td.msg{text-align:left}.gallery{padding:10px;max-width:100%;max-height:150px;overflow-x:scroll;white-space:nowrap;background-color:#EEE}.galleryimage{max-width:160px;max-height:120px}.imagepreview{max-width:720px;max-height:auto}.modal-content{text-align:center;overflow:auto}.logoimg{max-height:45px;width:auto;padding:5px,0}.logotext{display:inline-block;vertical-align:middle;line-height:normal} .skipbg{background:#5A6EE6 !important}.passbg{background:#50C850 !important}.warnbg{background:#FFE664 !important}.errorbg{background:#FF5032 !important}.failbg{background:#FFAF32 !important}";	
+		return ".highlight{background:magenta}.log,.titlecard,body{overflow-y:scroll}.logotext,.testEntry .title,.time,.titlecard .result{font-weight:700}body{font-size:150%;margin:0 auto;padding:40px 40px 65px 25px;background-color:#d1d4d8}.titlecard .logo{float:right;max-height:50px}.titlecard .testname{text-align:left;font-weight:700}td,th{text-align:center}.card{background-color:#fff;box-shadow:2px 2px 1px 0 #888;margin-bottom:1rem;padding:.75rem;border-radius:0}table,td{border:1px solid #000}.titlecard{height:315px}.testEntry .title{font-size:2em;margin-right:0;float:left;display:inline}.testEntry .time{padding-right:.5em;float:right}.log{max-height:400px}table{border-collapse:collapse;background:#CCC;width:100%}th{color:#fff;background:#2f4f4f}td.msg{text-align:left}.gallery{padding:10px;max-width:100%;max-height:150px;overflow-x:scroll;white-space:nowrap;background-color:#EEE}.galleryimage{max-width:160px;max-height:120px}.imagepreview{max-width:720px;max-height:auto}.modal-content{text-align:center;overflow:auto}.logoimg{max-height:45px;width:auto;padding:5px,0}.logotext{display:inline-block;vertical-align:middle;line-height:normal} .skipbg{background:#5A6EE6 !important}.passbg{background:#50C850 !important}.warnbg{background:#FFE664 !important}.errorbg{background:#FF5032 !important}.failbg{background:#FFAF32 !important}.unknownbg{background:#B400FF !important}"
+				+".screenshotlink{background:cyan}"
+				+"td.timestamp { position: relative; vertical-align: middle; }"
+				+".hovertext { background: #CCC; border: 1px solid white; vertical-align: middle; position: absolute; top: -1px; left: -1px; width: 100%; height: 100%; visibility: hidden; opacity: 0; transition: all .3s ease-in-out; }"
+				+"td:hover .hovertext { visibility: visible; opacity: 1; };";
 	}
 	
 	private String formatRuntime(Duration duration)	{
-		String dur = "";
+		String durationString = "";
 		
 		long difference = duration.getSeconds();
 		
@@ -596,22 +731,44 @@ public class HTMLFileWriter implements interfaces.HTMLWriter{
 
 		long elapsedSeconds = difference;
 		
-		dur += String.format("%02d", elapsedHours) + ":" + String.format("%02d", elapsedMinutes) + ":" + String.format("%02d", elapsedSeconds);
+		durationString += String.format("%02d", elapsedHours) + ":" + String.format("%02d", elapsedMinutes) + ":" + String.format("%02d", elapsedSeconds);
 		
-		return dur;
+		return durationString;
+	}
+	
+	private String getTimeBetween(LocalTime start, LocalTime until) {
+		String time = "CALCERR";
+		
+		//Duration between = Duration.between(start, until);
+		
+	    long millis = ChronoUnit.MICROS.between(start, until) / 100;
+	    long seconds = ChronoUnit.SECONDS.between(start, until);
+	    long minutes = ChronoUnit.MINUTES.between(start, until);
+	    
+		time = String.format("%02d", minutes) +":"+ String.format("%02d", seconds)+":"+ String.format("%04d", millis);
+
+		return time;
 	}
 	
 	private String getHTMLStatus(String status)
 	{
 		String ret = "";
 
-		if (status.equalsIgnoreCase("Pass")) { ret = "Pass"; }
-		else if (status.equalsIgnoreCase("Skip")) { ret = "Skip"; }
-		else if (status.equalsIgnoreCase("Error")) { ret = "Error"; }
-		else if (status.equalsIgnoreCase("Fail")) { ret = "Fail"; }
-		else if (status.equalsIgnoreCase("Warn") || status.equals("Warning")) { ret = "Warn"; }
+		ret = getString(status.toLowerCase());
 		
-		else ret="Error";
+		return ret == null ? "ERROR" : ret;
+	}
+	
+	private String getHTMLbg(String status){
+		String ret = "";
+
+		if (status.equalsIgnoreCase("pass") || status.equalsIgnoreCase("GESLAAGD")) { ret = "passbg"; }
+		else if (status.equalsIgnoreCase("skip") || status.equalsIgnoreCase("OVERSLAAN")) { ret = "skipbg"; }
+		else if (status.equalsIgnoreCase("error") || status.equalsIgnoreCase("FOUT")) { ret = "errorbg"; }
+		else if (status.equalsIgnoreCase("fail") || status.equalsIgnoreCase("GEFAALD")){ ret = "failbg"; }
+		else if (status.equalsIgnoreCase("warn") || status.equalsIgnoreCase("WAARSCHUWING")) { ret = "warnbg"; }
+		
+		else ret="unknownbg";
 		
 		return ret;
 	}

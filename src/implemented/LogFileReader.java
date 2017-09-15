@@ -93,7 +93,7 @@ public class LogFileReader implements interfaces.FileReader {
 			return sum;
 		}
 		
-		sum.setTitle(summaryFile_.split("_")[1].trim());
+		sum.setTitle(summaryFile_.split("_")[1].split(" - ", 2)[1].trim());
 		
 		System.out.println("Summary: " + sum.getTitle());	
 		
@@ -109,14 +109,15 @@ public class LogFileReader implements interfaces.FileReader {
 					{
 						String[] info = s.split(" = ", 2);
 						
-						if (startDate == false && info[0].equals("Date"))
+						if (startDate == false && 
+							(info[0].equalsIgnoreCase("Date") || info[0].equalsIgnoreCase("Datum")))
 						{
 							LocalDateTime start = formatDate(info[1]);
 							sum.setStartTime(start);
 							startDate = true;
 						}
 						
-						if (info[0].equals("Message"))
+						if (info[0].equalsIgnoreCase("Message") || info[0].equalsIgnoreCase("Log"))
 						{
 							if (info[1].contains("uitgesloten")) 
 							{
@@ -128,7 +129,7 @@ public class LogFileReader implements interfaces.FileReader {
 							    //summary_.addTest(tc.getName(), tc.getStatus());
 							    
 							    skippedList_.add(info[1].split(" is")[0]);
-							    //sum.addTest("", "Skip", Duration.ofSeconds(0));
+							    sum.addTest("", "Skip", Duration.ofSeconds(0));
 							}
 						}
 					}
@@ -185,6 +186,9 @@ public class LogFileReader implements interfaces.FileReader {
 			    
 			    endTest(newTest, lastLine);
 			    //summary_.addTest(newTest.getName(), newTest.getStatus());
+			    
+			    //Catch unstatused tests
+			    if (newTest.getStatus() == "") { newTest.setStatus("unknown"); }
 			}
 			catch (FileNotFoundException e) {
 				System.console().writer().println("Error: Could not find file.");
@@ -210,7 +214,7 @@ public class LogFileReader implements interfaces.FileReader {
 		
 	private LocalDateTime formatDate(String date)
 	{
-		DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
+		DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss.SSSS");
 		LocalDateTime dateTime = LocalDateTime.parse(date, formatter);
 		return dateTime;
 	}
@@ -229,8 +233,25 @@ public class LogFileReader implements interfaces.FileReader {
 				
 				//Log filtering here
 				if (info[0].equals("ThreadId")) { continue; }
-				if (info[0].equals("Source")) { info[1] = info[1].substring(info[1].lastIndexOf('.') + 1); }
-				if (info[0].equals("Date")) { info[1] = info[1].substring(info[1].lastIndexOf(' ') + 1); }
+				
+				if (info[0].equalsIgnoreCase("Date") || info[0].equalsIgnoreCase("Datum")) {
+					info[1] = info[1].substring(info[1].lastIndexOf(' ') + 1);
+					info[0] = "timestamp";
+				}
+				
+				if (info[0].equalsIgnoreCase("Severity") || info[0].equalsIgnoreCase("Level")) {
+					info[0] = "level";
+				}
+				
+				if (info[0].equalsIgnoreCase("Source") || info[0].equalsIgnoreCase("Bron")) { 
+					info[1] = info[1].substring(info[1].lastIndexOf('.') + 1);
+					info[0] = "source";
+				}
+				
+				
+				if (info[0].equalsIgnoreCase("Message") || info[0].equalsIgnoreCase("Log")) {
+					info[0] = "log";
+				}
 				
 				l.addData(info[0], info[1]);
 			}
@@ -249,12 +270,12 @@ public class LogFileReader implements interfaces.FileReader {
 			{
 				String[] info = s.split(" = ", 2);
 				
-				if (info[0].equals("Date")) {
+				if (info[0].equalsIgnoreCase("Date") || info[0].equalsIgnoreCase("Datum")) {
 					LocalDateTime testDate = formatDate(info[1]);
 					entry.setStartTime(testDate);
 				}
 				
-				else if (info[0].equals("Message"))	{
+				else if (info[0].equalsIgnoreCase("Message") || info[0].equalsIgnoreCase("Log"))	{
 					entry.setName(info[1]);
 				}
 			}
@@ -270,7 +291,7 @@ public class LogFileReader implements interfaces.FileReader {
 			for (String s : splits)
 			{
 				String[] info = s.split(" = ", 2);
-				if (info[0].equals("Date"))
+				if (info[0].equalsIgnoreCase("Date") || info[0].equalsIgnoreCase("Datum"))
 				{
 					LocalDateTime endTime = formatDate(info[1]);
 					long testTime = Duration.between(entry.getStartTime(), endTime).getSeconds();
@@ -279,16 +300,17 @@ public class LogFileReader implements interfaces.FileReader {
 				    
 				    //summary_.setRunTime(summary_.getRunTime().getSeconds() + testTime);				    
 				}
-					
-				if (info[0].equals("Message"))
+				
+				if (info[0].equalsIgnoreCase("Message") || info[0].equalsIgnoreCase("Log"))
 				{
 					String status = info[1];
 					status = status.substring(status.indexOf(": ") + 2);
 					
-					if (status.equals("GESLAAGD")) entry.setStatus("Pass");
-					if (status.equals("WAARSCHUWINGEN")) entry.setStatus("Warn");
-					if (status.equals("FOUT")) entry.setStatus("Error");
-					if (status.equals("NIET GESLAAGD")) entry.setStatus("Fail");
+					if (status.equalsIgnoreCase("GESLAAGD")) entry.setStatus("Pass");
+					else if (status.equalsIgnoreCase("WAARSCHUWINGEN")) entry.setStatus("Warn");
+					else if (status.equalsIgnoreCase("FOUT")) entry.setStatus("Error");
+					else if (status.equalsIgnoreCase("NIET GESLAAGD")) entry.setStatus("Fail");
+					else entry.setStatus("Unknown");
 				}
 			}
 		}	

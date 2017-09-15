@@ -17,13 +17,13 @@ public interface ReportSummary {
 	public Duration getRunTime();
 	
 	public void addTest(String title, String status, Duration seconds);
-	public String[] getTests();
 	
 	public int getSkipTests();
 	public int getPassTests();
 	public int getWarnTests();
 	public int getErrorTests();
 	public int getFailTests();
+	public int getUnkownTests();
 	
 	public int getTotalTests();
 	public int getTotalActiveTests();
