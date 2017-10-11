@@ -50,7 +50,7 @@ public class HTMLFileWriter implements interfaces.HTMLWriter{
 	public HTMLFileWriter() {
 		openForTests_ = false;
 		
-		fileName_ = "Report";
+		fileName_ = "NO_SUMMARY";
 		fileDate_ = "00NO00_0DATE0";
 		fileType_ = ".html";
 		
@@ -85,6 +85,9 @@ public class HTMLFileWriter implements interfaces.HTMLWriter{
 			languagePack_.put("fail", "Niet Geslaagd");
 			languagePack_.put("warn", "Waarschuwingen");
 			languagePack_.put("unknown", "Onbekend");
+			
+			languagePack_.put("nologs", "Er zijn geen .log files gevonden!");
+			languagePack_.put("nosum", "Algemeen file ontbreekt!");
 		}
 		
 		else
@@ -110,6 +113,10 @@ public class HTMLFileWriter implements interfaces.HTMLWriter{
 			languagePack_.put("fail", "Fail");
 			languagePack_.put("warn", "Warning");
 			languagePack_.put("unknown", "Unknown");
+			
+
+			languagePack_.put("nologs", "No .log files found!");
+			languagePack_.put("nosum", "No summary .log found!");
 		}
 	}
 	
@@ -125,8 +132,18 @@ public class HTMLFileWriter implements interfaces.HTMLWriter{
 	public void beginReport(String path, ReportSummary summary) {
 		path_ = path;
 		summary_ = summary;
+
+		if (summary_.getTitle() != null) {
+			
+			if (summary_.getTitle().equalsIgnoreCase("$REPORT_TITLE$")) {
+				fileName_ = "ERROR_REPORT";
+			}
+			
+			else {
+				fileName_ = summary_.getTitle(); 
+			}
+		}
 		
-		if (summary_.getTitle() != null)	{ fileName_ = summary_.getTitle(); }
 		if (summary_.getGenerationTime() != null) { 
 			fileDate_ =  "_" + summary_.getGenerationTime().format(DateTimeFormatter.ofPattern("ddMMYY_HHmmss")); 
 		}
@@ -183,7 +200,7 @@ public class HTMLFileWriter implements interfaces.HTMLWriter{
 					collapseElement = " data-toggle=\"collapse\" href=\"#testlog" + testCount_ + "\" aria-expanded=\"false\" aria-controls=\"testlog" +testCount_+ "\"";
 				}
 				
-				details_.addLine("<div class=\"highlight\"><div class=\"card testEntry\" id=\"testcard" + testCount_ + "\">");
+				details_.addLine("<div class=\"testwrapper\"><div id=\"testcard" + testCount_ + "\" class=\"card testentry\">");
 				details_.indent();
 				details_.addLine("<div class=\"cardheader " + getHTMLbg(testcase.getStatus()) + "\" "+ collapseElement+">");
 				details_.indent();
@@ -191,9 +208,8 @@ public class HTMLFileWriter implements interfaces.HTMLWriter{
 					//test.addLine("<span class=\"glyphicon glyphicon-plus expandarrow\" aria-hidden=\"true\" style=\"margin-left: 0.25em; float: left; clear: left;\"></span>");
 				}
 				details_.addLine("<span class=\"title\">" + testcase.getName() + "</span>");
-				//test.addLine("<span class=\"status " + getHTMLStatus(t.getStatus()) + "\">" + t.getStatus() + "</span>");
-				details_.addLine("<span class=\"time start\"><span class=\"glyphicon glyphicon-time\" aria-hidden=\"true\"></span> " + startTime + "</span><br/>");
-				details_.addLine("<span class=\"time run\"><span class=\"glyphicon glyphicon-repeat\" aria-hidden=\"true\"></span> " + runTime + "</span><br/>");
+				details_.addLine("<span class=\"time\"><span class=\"glyphicon glyphicon-time\" aria-hidden=\"true\"></span> " + startTime + "</span><br/>");
+				details_.addLine("<span class=\"time\"><span class=\"glyphicon glyphicon-repeat\" aria-hidden=\"true\"></span> " + runTime + "</span><br/>");
 				details_.dedent();	
 				details_.addLine("</div>");
 				
@@ -357,7 +373,6 @@ public class HTMLFileWriter implements interfaces.HTMLWriter{
 		
 		for (String s : data.keySet())
 		{
-			
 			String value = data.get(s).trim();
 			//System.out.println(value);
 			//System.out.println(row);
@@ -373,7 +388,7 @@ public class HTMLFileWriter implements interfaces.HTMLWriter{
 				
 				String timeBetween = getTimeBetween(lastTimeLT, entryTime);
 				
-				row += "<td class=\"timestamp\">" + value + "<div class=\"hovertext\">+"+ timeBetween+"</div></td>";
+				row += "<td class=\"timestamp\">" + value + "<div class=\"hovertext\"><div class=\"hoverwrap\">"+ timeBetween+"</div></div></td>";
 				
 				//row += "<td>" + value + "</td>";
 			}
@@ -381,7 +396,7 @@ public class HTMLFileWriter implements interfaces.HTMLWriter{
 			else if (s.equalsIgnoreCase("Severity") || s.equalsIgnoreCase("Level"))
 			{
 				//Only highlight non-info rows
-				rowType = (value.equals("Info") ? "" :  " class = \"" + getHTMLbg(value) + "\"");
+				rowType = (value.equals("Info") ? "" :  " class=\"" + getHTMLbg(value) + "\"");
 				row += "<td>" + value + "</td>";
 			}
 			
@@ -389,7 +404,7 @@ public class HTMLFileWriter implements interfaces.HTMLWriter{
 			{
 				if (value.equalsIgnoreCase("BasisScreenshot")) {
 
-					row += "<td><span class=\"screenshotlink\">" + value + "</span></td>";
+					row += "<td><span class=\"screenshot\">" + value + "</span></td>";
 				}
 				
 				else row+="<td>" + value + "</td>";
@@ -414,7 +429,7 @@ public class HTMLFileWriter implements interfaces.HTMLWriter{
 						msgEnd = value.substring(endI, endI + 1);
 						filename = value.substring(nameI + 1, endI);
 						
-						String imglink = "<a class=\"screenshotlink\" href=\"imgs/";
+						String imglink = "<a class=\"screenshot\" href=\"imgs/";
 						imglink += filename;
 						imglink += "\" target=\"_blank\">" + filename + "</a>";
 												
@@ -449,7 +464,7 @@ public class HTMLFileWriter implements interfaces.HTMLWriter{
 		overview_.addLine("<script src=\"scripts/bootstrap/js/bootstrap.js\"></script>");
 		overview_.addLine("<script src=\"scripts/chart.js\"></script>");
 		overview_.addLine(String.format("<title>%s</title>", fileName_));
-		overview_.addLine("<style>" + css() + "</style>");
+		overview_.addLine("<link rel=\"stylesheet\" type=\"text/css\" href=\"scripts/base.css\"/>");
 		overview_.dedent();
 		overview_.addLine("</head>");
 		
@@ -524,6 +539,24 @@ public class HTMLFileWriter implements interfaces.HTMLWriter{
 		//Close overview div
 		overview_.addLine( "</div>");
 		overview_.newLine();
+		
+		//We pick up and display errors here, once we have information in the report
+		boolean err = false;
+		if (summary_.getTitle().equalsIgnoreCase("$REPORT_TITLE$")) {
+			overview_.addLine("<div class=\"card errorbg\">");
+			overview_.addLine(getString("nosum"));
+			overview_.addLine("</div>");
+			err = true;
+		}
+		
+		//We're closing but we haven't written any tests!
+		if (testCount_ < 2)
+		{
+			overview_.addLine("<div class=\"card errorbg\">");
+			overview_.addLine(getString("nologs"));
+			overview_.addLine("</div>");
+			err = true;
+		}
 		
 		//Divider
 		overview_.addLine("<hr/>");
@@ -622,7 +655,6 @@ public class HTMLFileWriter implements interfaces.HTMLWriter{
 		details_.addLine("labels: [\"" + getString("skip") + "\", \"" + getString("pass") + "\", \"" + getString("warn") + "\", \"" + getString("fail") + "\", \"" + getString("error") + "\", \"" + getString("unknown") + "\"],");
 		details_.addLine("datasets: [{");
 		
-		//TODO: Perhaps remove non-extant statuses from graph
 		details_.addLine(String.format("data: [%d, %d, %d, %d, %d, %d],", summary_.getSkipTests(),  summary_.getPassTests(), summary_.getWarnTests(), summary_.getFailTests(), summary_.getErrorTests(), summary_.getUnkownTests()));
 
 		details_.addLine("backgroundColor: [");
@@ -666,9 +698,6 @@ public class HTMLFileWriter implements interfaces.HTMLWriter{
 		float passPercent = 100.f *(passTests / (totalActiveTests == 0 ? 1 : totalActiveTests));
 		float failPercent = 100.f - passPercent;
 		
-		//System.out.println(passPercent + " : " + decimal.format(passPercent));
-		//System.out.println(failPercent + " : " + decimal.format(failPercent));
-		
 		details_.addLine("<script>");
 		details_.indent();
 		details_.addLine("var ctx = document.getElementById(\"bar\");");
@@ -707,14 +736,6 @@ public class HTMLFileWriter implements interfaces.HTMLWriter{
 		details_.addLine("</script>");
 	}
 	
-	private String css() {
-		return ".highlight{background:magenta}.log,.titlecard,body{overflow-y:scroll}.logotext,.testEntry .title,.time,.titlecard .result{font-weight:700}body{font-size:150%;margin:0 auto;padding:40px 40px 65px 25px;background-color:#d1d4d8}.titlecard .logo{float:right;max-height:50px}.titlecard .testname{text-align:left;font-weight:700}td,th{text-align:center}.card{background-color:#fff;box-shadow:2px 2px 1px 0 #888;margin-bottom:1rem;padding:.75rem;border-radius:0}table,td{border:1px solid #000}.titlecard{height:315px}.testEntry .title{font-size:2em;margin-right:0;float:left;display:inline}.testEntry .time{padding-right:.5em;float:right}.log{max-height:400px}table{border-collapse:collapse;background:#CCC;width:100%}th{color:#fff;background:#2f4f4f}td.msg{text-align:left}.gallery{padding:10px;max-width:100%;max-height:150px;overflow-x:scroll;white-space:nowrap;background-color:#EEE}.galleryimage{max-width:160px;max-height:120px}.imagepreview{max-width:720px;max-height:auto}.modal-content{text-align:center;overflow:auto}.logoimg{max-height:45px;width:auto;padding:5px,0}.logotext{display:inline-block;vertical-align:middle;line-height:normal} .skipbg{background:#5A6EE6 !important}.passbg{background:#50C850 !important}.warnbg{background:#FFE664 !important}.errorbg{background:#FF5032 !important}.failbg{background:#FFAF32 !important}.unknownbg{background:#B400FF !important}"
-				+".screenshotlink{background:cyan}"
-				+"td.timestamp { position: relative; vertical-align: middle; }"
-				+".hovertext { background: #CCC; border: 1px solid white; vertical-align: middle; position: absolute; top: -1px; left: -1px; width: 100%; height: 100%; visibility: hidden; opacity: 0; transition: all .3s ease-in-out; }"
-				+"td:hover .hovertext { visibility: visible; opacity: 1; };";
-	}
-	
 	private String formatRuntime(Duration duration)	{
 		String durationString = "";
 		
@@ -739,8 +760,6 @@ public class HTMLFileWriter implements interfaces.HTMLWriter{
 	private String getTimeBetween(LocalTime start, LocalTime until) {
 		String time = "CALCERR";
 		
-		//Duration between = Duration.between(start, until);
-		
 	    long millis = ChronoUnit.MICROS.between(start, until) / 100;
 	    long seconds = ChronoUnit.SECONDS.between(start, until);
 	    long minutes = ChronoUnit.MINUTES.between(start, until);
@@ -760,15 +779,13 @@ public class HTMLFileWriter implements interfaces.HTMLWriter{
 	}
 	
 	private String getHTMLbg(String status){
-		String ret = "";
+		String ret = "unknownbg";
 
 		if (status.equalsIgnoreCase("pass") || status.equalsIgnoreCase("GESLAAGD")) { ret = "passbg"; }
 		else if (status.equalsIgnoreCase("skip") || status.equalsIgnoreCase("OVERSLAAN")) { ret = "skipbg"; }
 		else if (status.equalsIgnoreCase("error") || status.equalsIgnoreCase("FOUT")) { ret = "errorbg"; }
 		else if (status.equalsIgnoreCase("fail") || status.equalsIgnoreCase("GEFAALD")){ ret = "failbg"; }
 		else if (status.equalsIgnoreCase("warn") || status.equalsIgnoreCase("WAARSCHUWING")) { ret = "warnbg"; }
-		
-		else ret="unknownbg";
 		
 		return ret;
 	}

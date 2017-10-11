@@ -14,6 +14,13 @@ public class Main {
 		String inputDir = absoluteCurDir;
 		String outputDir = absoluteCurDir;
 		
+		//TODO:
+		//NEW CLI 
+		//-input "dir"
+		//-output "dir"
+		//-debug [flag]
+		//-lang EN NL [fallback to NL]
+		
 		FileReader reader_ = new LogFileReader();
 		HTMLWriter writer_;
 		writer_ = new HTMLFileWriter();
@@ -40,7 +47,7 @@ public class Main {
 		inputDir += "\\";
 		outputDir += "\\";
 		
-		//Init logic
+		//Init logic, Args complete
 		System.out.println("INIT " + args.length + " arguments provided");
 		System.out.println("Input folder set to: " + inputDir);
 		System.out.println("Output folder set to: " + outputDir + "\n");
@@ -48,6 +55,8 @@ public class Main {
 		System.out.println("Scanning directory...");
 		reader_.scanDir(inputDir);
 
+		//TODO: Empty dir still produces report
+		
 		System.out.println("Preparing...");
 		writer_.beginReport(outputDir, reader_.parseSummary());
 		

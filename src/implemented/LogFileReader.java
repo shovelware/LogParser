@@ -28,6 +28,8 @@ public class LogFileReader implements interfaces.FileReader {
 	String path_;
 	String summaryFile_;
 	
+	boolean debug_;
+	
 	public LogFileReader() {
 		fileList_ = new ArrayList<String>();
 		imageList_ = new ArrayList<String>();
@@ -38,6 +40,8 @@ public class LogFileReader implements interfaces.FileReader {
 		summaryFile_ = "";
 		
 		skippedList_ = new ArrayList<String>();
+		
+		debug_ = true;
 	}
 
 	@Override
@@ -80,7 +84,16 @@ public class LogFileReader implements interfaces.FileReader {
 				imageList_.add(s);
 			}
 		}
-				
+		
+		if (summaryFile_.equalsIgnoreCase(""))
+		{
+			System.out.println("ERROR: NO SUMMARY FOUND");
+		}
+		
+		if (fileList_.size() == 0)
+		{
+			System.out.println("ERROR: NO LOGS FOUND");
+		}
 	}
 
 	@Override
@@ -93,7 +106,9 @@ public class LogFileReader implements interfaces.FileReader {
 			return sum;
 		}
 		
-		sum.setTitle(summaryFile_.split("_")[1].split(" - ", 2)[1].trim());
+		String title = summaryFile_.split("_", 2)[1].split("_\\d+{2}_\\d+{2}_\\d+{4}", 2)[0].trim();
+		
+		sum.setTitle(title);
 		
 		System.out.println("Summary: " + sum.getTitle());	
 		
@@ -173,14 +188,19 @@ public class LogFileReader implements interfaces.FileReader {
 			
 		for(String line; (line = br.readLine()) != null; ) {
 		   		if (firstLine) {
-		   			if (line.contains("Logging Gestart")) { continue; }
-		   			startTest(newTest, line);
-		   			firstLine = false;
+		   			if (!line.contains("Logging Gestart") & line.contains("FunctiesTA.START")) { 
+		   				startTest(newTest, line);
+		   				firstLine = false;
+		   			}
 		   		}
 			    	
 		   			LogEntry l = processLine(line);
 
-		   			newTest.addLog((interfaces.LogEntry) l);
+		   			if (l != null)
+		   			{
+		   				newTest.addLog((interfaces.LogEntry) l);
+		   			}
+		   			
 		   			lastLine = line;
 		   		}
 			    
@@ -224,9 +244,14 @@ public class LogFileReader implements interfaces.FileReader {
 		LogEntry l = new LogEntryImpl();
 		
 		String[] splits = text.split(" \\| ");
+		boolean addLine = false;
 		
 		if (splits.length > 1)
 		{
+			//For deciding if we want this line
+			addLine = true;
+			
+			//Step through each column
 			for (String s : splits)
 			{
 				String[] info = s.split(" = ", 2);
@@ -241,6 +266,11 @@ public class LogFileReader implements interfaces.FileReader {
 				
 				if (info[0].equalsIgnoreCase("Severity") || info[0].equalsIgnoreCase("Level")) {
 					info[0] = "level";
+					//Debug off, don't include lines with debug		
+					if (!debug_ && info[1].trim().equalsIgnoreCase("Debug"))
+					{
+						addLine = false;;
+					}
 				}
 				
 				if (info[0].equalsIgnoreCase("Source") || info[0].equalsIgnoreCase("Bron")) { 
@@ -257,7 +287,12 @@ public class LogFileReader implements interfaces.FileReader {
 			}
 		}
 		
-		return l;
+		if (addLine)
+		{
+			return l;
+		}
+		
+		else return null;
 	}
 	
 	private void startTest(interfaces.TestCase entry, String line)
