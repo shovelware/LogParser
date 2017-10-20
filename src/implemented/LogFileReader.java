@@ -345,6 +345,7 @@ public class LogFileReader implements interfaces.FileReader {
 					else if (status.equalsIgnoreCase("WAARSCHUWINGEN")) entry.setStatus("Warn");
 					else if (status.equalsIgnoreCase("FOUT")) entry.setStatus("Error");
 					else if (status.equalsIgnoreCase("NIET GESLAAGD")) entry.setStatus("Fail");
+					else if (status.equalsIgnoreCase("OVERGESLAGEN")) entry.setStatus("Skip");
 					else entry.setStatus("Unknown");
 				}
 			}
