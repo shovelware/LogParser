@@ -129,5 +129,4 @@ public class ReportSummaryImpl implements ReportSummary {
 	public int getUnkownTests() {
 		return unkownTests_;
 	}
-
 }

@@ -14,6 +14,7 @@ import java.time.format.DateTimeFormatter;
 import java.time.temporal.ChronoUnit;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
+import java.util.LinkedList;
 import java.util.Map;
 import java.util.Set;
 
@@ -46,6 +47,7 @@ public class HTMLFileWriter implements interfaces.HTMLWriter{
 	ReportSummary summary_;
 	
 	Map<String, String> languagePack_;	
+	LinkedList<String> flags_;
 	
 	public HTMLFileWriter() {
 		openForTests_ = false;
@@ -55,10 +57,25 @@ public class HTMLFileWriter implements interfaces.HTMLWriter{
 		fileType_ = ".html";
 		
 		testCount_ = 1;
+		flags_ = new LinkedList<String>();
 		
 		setupLanguage("NL");
 	}
 
+	@Override
+	public void setFlag(String flag) {
+		flags_.add(flag);
+	}
+
+	@Override
+	public void setOption(String option, String value) {
+		if (option.equalsIgnoreCase("language")) {
+			if (value.equalsIgnoreCase("EN")) { setupLanguage("EN"); }
+			else if (value.equalsIgnoreCase("NL")) { setupLanguage("NL"); }
+			else setupLanguage("NL");
+		}
+	}
+	
 	public void setupLanguage(String language) {
 		languagePack_ = new HashMap<String, String>();
 		
@@ -114,7 +131,6 @@ public class HTMLFileWriter implements interfaces.HTMLWriter{
 			languagePack_.put("warn", "Warning");
 			languagePack_.put("unknown", "Unknown");
 			
-
 			languagePack_.put("nologs", "No .log files found!");
 			languagePack_.put("nosum", "No summary .log found!");
 		}
@@ -595,6 +611,10 @@ public class HTMLFileWriter implements interfaces.HTMLWriter{
 		
 		details_.addLine("<div class=\"pull-left\">");
 		details_.indent();
+		String flags = "";
+		int i = 0;
+		for(String s : flags_) { flags += (++i < flags_.size() ? s + "  | " : s);} 
+		details_.addLine("<span class=\"note\">" + flags + "</span>");
 		details_.dedent();
 		details_.addLine("</div>");
 		

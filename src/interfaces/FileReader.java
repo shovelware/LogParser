@@ -6,4 +6,6 @@ public interface FileReader {
 	interfaces.TestCase parseNextTest();
 	
 	boolean hasNextTest();
+	void setFlag(String flag);
+	void setOption(String option, String value);
 }

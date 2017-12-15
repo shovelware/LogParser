@@ -149,4 +149,15 @@ public class RawWriter implements HTMLWriter {
 		
 		return dur;
 	}
+
+	@Override
+	public void setFlag(String flag) {
+		System.out.println(flag);
+		
+	}
+
+	@Override
+	public void setOption(String option, String value) {
+		System.out.println(option + " : " + value);
+	}
 }

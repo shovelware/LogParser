@@ -41,8 +41,14 @@ public class LogFileReader implements interfaces.FileReader {
 		
 		skippedList_ = new ArrayList<String>();
 		
-		debug_ = true;
+		debug_ = false;
 	}
+	
+	public void setFlag(String flag) {
+		if (flag.equalsIgnoreCase("debug")) { debug_ = true; }
+	}
+	
+	public void setOption(String option, String value) {}
 
 	@Override
 	public void scanDir(String path) {
@@ -269,7 +275,7 @@ public class LogFileReader implements interfaces.FileReader {
 					//Debug off, don't include lines with debug		
 					if (!debug_ && info[1].trim().equalsIgnoreCase("Debug"))
 					{
-						addLine = false;;
+						addLine = false;
 					}
 				}
 				

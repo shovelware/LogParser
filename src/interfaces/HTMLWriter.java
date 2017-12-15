@@ -8,4 +8,7 @@ public interface HTMLWriter {
 	void writeTest(TestCase testcase);
 	
 	void endReport();
+	
+	void setFlag(String flag);
+	void setOption(String option, String value);
 }
